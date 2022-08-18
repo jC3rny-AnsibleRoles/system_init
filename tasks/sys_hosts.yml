@@ -1,0 +1,21 @@
+# [ system_init - tasks/sys_hosts.yml ]
+
+- set_fact:
+    sys_hosts_file_default_entries: "{{ sys_hosts_file_default_entries + [ (hostvars[item]['ansible_default_ipv4'].address + '  ' + hostvars[item].ansible_hostname + ' ' + hostvars[item].ansible_fqdn) ] }}"
+  ignore_errors: yes
+  with_items: "{{ sys_hosts_file_host_list }}"
+
+- blockinfile:
+    path: /etc/hosts
+    backup: yes
+    marker: "# {mark} DEFAULT BLOCK"
+    block: |
+      {{ item }}
+  with_items: "{{ sys_hosts_file_default_entries | join('\n') }}"
+
+- blockinfile:
+    path: /etc/hosts
+    backup: yes
+    marker: "# {mark} ADDITIONAL BLOCK"
+    block: |
+      {{ sys_hosts_file_additional_entries }}

@@ -1,0 +1,139 @@
+---
+# [ system_init - defaults ]
+
+# TimeZone
+sys_timeZone: Europe/Prague
+
+
+# SELinux
+sys_selinux_state_policy: "targeted"
+sys_selinux_state_type: "enforcing"
+
+
+# SSHD
+sys_sshd_additional_configs: []
+  # - "10-default": |
+  #     UseDNS no
+  # - "20-public": |
+  #     DebianBanner no
+  #     DisableForwarding yes
+  #     PermitRootLogin no
+  #     IgnoreRhosts yes
+  #     PasswordAuthentication no
+  #     PermitEmptyPasswords no
+
+
+# Users
+sys_users: []
+  # - name: doej321
+  #   gecos: John Doe
+  #   groups: [ wheel ]
+  #   sudo: ALL=(ALL) NOPASSWD:ALL
+  #   lock_passwd: yes
+  #   shell: /bin/sh
+  #   ssh_authorized_keys:
+  #     - ssh-ed25519 AAAVSTAS_DLFAqwSDGKqhASDFL+fas+pTMyAuz+gpn1f+BXVc2LasdEWQGA42nhfvrX2 john.doe@local
+
+
+# Lock users
+sys_locked_users: []
+  # Never use for root or system accounts
+  # - ubuntu
+
+
+# /etc/hosts
+sys_hosts_file_default_entries: []
+  # Always leave empty
+
+sys_hosts_file_host_list: []
+  # Define hosts list
+  # - "{{ ansible_play_hosts }}"
+  # - "{{ groups['all'] }}"
+
+sys_hosts_file_additional_entries: ""
+  #   192.168.100.50  wfe-nlb wfe-nlb.local
+  #   192.168.100.51  wfe1 wfe1.local
+  #   192.168.100.52  wfe2 wfe2.local
+  #   192.168.100.59  proxy proxy.local
+
+
+# Proxy
+sys_proxy_hosts_ipv4_subnets: []
+  # Always leave empty
+
+sys_proxy_hosts_list: "{{ ansible_play_hosts }}"
+  # Define hosts list
+
+# sys_proxy_http_settings: "{{ vault_sys_proxy_http_settings }}"
+sys_proxy_http_settings: {}
+  # protocol: "http"
+  # username: ""
+  # password: ""
+  # server: "proxy.local"
+  # port: 80
+
+sys_proxy_https_settings: "{{ sys_proxy_http_settings }}"
+  
+sys_proxy_include_hosts_subnets: no
+
+sys_proxy_exceptions_default: "localhost,127.0.0.0/8,::1"
+sys_proxy_exceptions_additional: []
+
+
+# APT: do not use proxy for listed repositories
+sys_apt_proxy_direct_repositories: []
+sys_apt_upgrade_method: "full"
+
+
+# Snap
+sys_snapd_enabled: yes
+
+
+# Packages
+# PREREQ: repository have to be configured manually...
+sys_packages_common: [ bash-completion, curl, gpm, lsof, lvm2, mc, nmap, sysstat, tcpdump, tmux, tree, vim, wget ]
+sys_packages_additional: []
+sys_packages_debian: [  bind9-utils, thin-provisioning-tools ]
+sys_packages_rhel: [ bind-utils, device-mapper-persistent-data ]
+sys_packages_rhel_epel: [ bash-completion-extras, htop, jq, moreutils ]
+sys_packages_rhel_epel_repo_name: epel
+
+
+# Cockpit
+sys_cockpit_install: no
+sys_cockpit_certificate_path: ""
+
+
+# NTP
+sys_ntpd_enabled: no
+sys_ntpd_conf_driftfile: "/var/lib/ntp/ntp.drift"
+sys_ntpd_conf_leapfile: "/usr/share/zoneinfo/leap-seconds.list"
+sys_ntpd_conf_statsdir: ""
+sys_ntpd_conf_servers:
+  - pool 0.pool.ntp.org
+  - pool 1.pool.ntp.org
+  - pool 2.pool.ntp.org
+  - pool 3.pool.ntp.org
+sys_ntpd_conf_restrictions: []
+
+
+# CA
+sys_ca_certificates: []
+  # - filename: DigiCert_Global_Root_CA.crt
+  #   certificate: |
+  #     -----BEGIN CERTIFICATE-----
+  #     MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh
+  #     YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk
+  #     CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=
+  #     -----END CERTIFICATE-----
+  # - filename: DigiCert_Global_Root_CA.crt
+  #   url: https://cacerts.digicert.com/DigiCertGlobalRootCA.crt.pem
+  # - filename: postsignum_qca4_root.crt
+  #   url: https://www.postsignum.cz/files/ca/postsignum_qca4_root.cer
+  #   convert: yes
+
+
+# LVM extend
+sys_lvm_lvol_extend: []
+  # - { vg: "centos", lv: "var_log", size: "4G" }
+  # - { vg: "ubuntu", lv: "var_lib", size: "16G" }

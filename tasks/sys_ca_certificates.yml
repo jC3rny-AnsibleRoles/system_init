@@ -1,0 +1,65 @@
+# [ system_init - tasks/sys_ca_certificates.yml ]
+
+# RHEL
+- block:
+  # Import PEM certificate (RHEL)
+  - name: Import PEM certificate (RHEL)
+    get_url:
+      url: "{{ item.url }}"
+      dest: "/etc/pki/ca-trust/source/anchors/{{ item.filename }}"
+    with_items: "{{ sys_ca_certificates | selectattr('url', 'defined') | selectattr('convert', 'undefined') }}"
+
+  - copy:
+      dest: "/etc/pki/ca-trust/source/anchors/{{ item.filename }}"
+      content: "{{ item.certificate }}"
+      mode: 0644
+    with_items: "{{ sys_ca_certificates | selectattr('certificate', 'defined') }}"
+    no_log: yes
+  
+  # Import DER certificate
+  - name: Import DER certificate
+    get_url:
+      url: "/etc/pki/ca-trust/source/anchors/{{ item.filename }}"
+      dest: "/tmp/{{ item.filename }}"
+    with_items: "{{ sys_ca_certificates | selectattr('url', 'defined') | selectattr('convert', 'defined') }}"
+  
+  - shell: "openssl x509 -inform DER -in /etc/pki/ca-trust/source/anchors/{{ item.filename }} -out /etc/pki/ca-trust/source/anchors/{{ item.filename }}"
+    failed_when: no
+    with_items: "{{ sys_ca_certificates | selectattr('url', 'defined') | selectattr('convert', 'defined') }}"
+  
+  notify: Update CA trust
+  when: ansible_facts['os_family'] | lower == 'redhat'
+
+
+# Debian
+- block:
+    # Import PEM certificate (Debian)
+    - name: Import PEM certificate (Debian)
+      get_url:
+        url: "{{ item.url }}"
+        dest: "/usr/local/share/ca-certificates/{{ item.filename }}"
+      with_items: "{{ sys_ca_certificates | selectattr('url', 'defined') | selectattr('convert', 'undefined') }}"
+
+    - copy:
+        dest: "/usr/local/share/ca-certificates/{{ item.filename }}"
+        content: "{{ item.certificate }}"
+        mode: 0644
+      with_items: "{{ sys_ca_certificates | selectattr('certificate', 'defined') }}"
+      no_log: yes
+    
+    # Import DER certificate
+    - name: Import DER certificate
+      get_url:
+        url: "{{ item.url }}"
+        dest: "/usr/local/share/ca-certificates/{{ item.filename }}"
+      with_items: "{{ sys_ca_certificates | selectattr('url', 'defined') | selectattr('convert', 'defined') }}"
+    
+    - shell: "openssl x509 -inform DER -in /usr/local/share/ca-certificates/{{ item.filename }} -out /usr/local/share/ca-certificates/{{ item.filename }}"
+      changed_when: no
+      failed_when: no
+      with_items: "{{ sys_ca_certificates | selectattr('url', 'defined') | selectattr('convert', 'defined') }}"
+    
+  notify: Update CA certificates
+  when: ansible_facts['os_family'] | lower == 'debian'
+
+- meta: flush_handlers

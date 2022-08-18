@@ -1,0 +1,38 @@
+# [ system_init - tasks/sys_proxy.yml ]
+
+# Gather hosts ipv4 addresses
+- name: Gather hosts ipv4 addresses
+  ignore_errors: yes
+  set_fact:
+    sys_proxy_hosts_ipv4_subnets: "{{ sys_proxy_hosts_ipv4_subnets + [ (hostvars[item]['ansible_default_ipv4'].address + '/' + hostvars[item]['ansible_default_ipv4'].netmask) | ipaddr('network/prefix') ] }}"
+  with_items: "{{ sys_proxy_hosts_list }}"
+  when: sys_proxy_include_hosts_subnets | bool
+
+
+# Set up proxy environment
+- name: Set up proxy environment
+  blockinfile:
+    path: /etc/environment
+    backup: no
+    create: yes
+    marker: "# {mark} PROXY BLOCK"
+    block: |
+      HTTP_PROXY="{{ sys_proxy_http_settings.protocol }}://{% if sys_proxy_http_settings.username != "" %}{{ sys_proxy_http_settings.username }}:{{ sys_proxy_http_settings.password }}@{% endif %}{{ sys_proxy_http_settings.server }}:{{ sys_proxy_http_settings.port }}"
+      HTTPS_PROXY="{{ sys_proxy_https_settings.protocol }}://{% if sys_proxy_https_settings.username != "" %}{{ sys_proxy_https_settings.username }}:{{ sys_proxy_https_settings.password }}@{% endif %}{{ sys_proxy_https_settings.server }}:{{ sys_proxy_https_settings.port }}"
+      NO_PROXY="{{ sys_proxy_exceptions_default }}{% if sys_proxy_include_hosts_subnets | bool %},{{ sys_proxy_hosts_ipv4_subnets | unique | join(',') }}{% endif %}{% if sys_proxy_exceptions_additional != [] %},{{ sys_proxy_exceptions_additional | unique | join(',') }}{% endif %}"
+
+
+# Set the Proxy for APT
+- name: Set the Proxy for APT
+  blockinfile:
+    path: /etc/apt/apt.conf.d/60-proxy.conf
+    backup: no
+    create: yes
+    block: |
+      Acquire::http::Proxy "{{ sys_proxy_http_settings.protocol }}://{% if sys_proxy_http_settings.username != "" %}{{ sys_proxy_http_settings.username }}:{{ sys_proxy_http_settings.password }}@{% endif %}{{ sys_proxy_http_settings.server }}:{{ sys_proxy_http_settings.port }}";
+      Acquire::https::Proxy "{{ sys_proxy_https_settings.protocol }}://{% if sys_proxy_https_settings.username != "" %}{{ sys_proxy_https_settings.username }}:{{ sys_proxy_https_settings.password }}@{% endif %}{{ sys_proxy_https_settings.server }}:{{ sys_proxy_https_settings.port }}";
+
+      {% for repository in sys_apt_proxy_direct_repositories %}
+      Acquire::http::Proxy::{{ repository }} DIRECT;
+      {% endfor %}
+  when: ansible_facts['os_family'] | lower == 'debian'

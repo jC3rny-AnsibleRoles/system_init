@@ -1,0 +1,49 @@
+# [ system_init - tasks/sys_cockpit.yml ]
+
+# Install Cockpit packages
+- name: Install Cockpit packages
+  yum:
+    name: [ cockpit, cockpit-storaged ]
+    state: latest
+    update_cache: yes
+    skip_broken: yes
+  register: install_cockpit_pkgs
+  notify: Reload cockpit socket
+
+- meta: flush_handlers
+
+
+# Generate certificate request for internal CA
+- name: Generate certificate request for internal CA
+  file:
+    path: $HOME/cockpit-pki
+    state: directory
+  register: sys_cockpit_pki_directory
+
+- copy:
+    src: cockpit-pki/new_req.sh
+    dest: $HOME/cockpit-pki/new_req.sh
+    mode: 0755
+  when: sys_cockpit_pki_directory.changed
+
+- command: "bash $HOME/cockpit-pki/new_req.sh"
+  when: sys_cockpit_pki_directory.changed
+
+
+# Update Cockpit host certificate
+- name: Update Cockpit host certificate
+  #cat wfe1.{key,crt} > /etc/cockpit/ws-certs.d/50-int_ca.cert
+  local_action: stat path="{{ sys_cockpit_certificate_path }}/{{ inventory_hostname }}.cert"
+  register: sys_cockpit_cert_file
+
+- copy:
+    src: "{{ sys_cockpit_certificate_path }}/{{ inventory_hostname }}.cert"
+    dest: /etc/cockpit/ws-certs.d/50-int_ca.cert
+    owner: root
+    group: cockpit-ws
+    mode: 0640
+  register: sys_cockpit_copy_cert_file
+  notify: Check cockpit certificate
+  when: sys_cockpit_cert_file.stat.exists
+
+- meta: flush_handlers

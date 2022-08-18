@@ -1,0 +1,42 @@
+# [ system_init - tasks/sudoers.yml ]
+
+# Update sudoers Users
+- name: Update sudoers Users
+  lineinfile:
+    path: /etc/sudoers.d/71-ansible-users
+    backup: no
+    create: yes
+    regexp: "^{{ item.name }} .*"
+    line: "{{ item.name }} {{ item.sudo }}"
+    validate: visudo -cf %s
+  with_items: "{{ sys_users }}"
+  when: sys_users != []
+  tags: [ set-sys_users ]
+
+
+# Update sudoers Defaults specification
+- name: Update sudoers Defaults specification
+  blockinfile:
+    path: /etc/sudoers.d/73-ansible-env_keep
+    backup: no
+    create: yes
+    block: |
+      Defaults    env_keep += "HTTP_PROXY http_proxy HTTPS_PROXY https_proxy NO_PROXY no_proxy"
+    validate: visudo -cf %s
+  when: sys_proxy_http_settings != {}
+  tags: [ set-sys_proxy ]
+
+- block:
+  - shell: "grep -oP '(?<=secure_path\ =\ ).*' /etc/sudoers"
+    register: sudoers_default_secure_path
+    changed_when: no
+
+  - blockinfile:
+      path: /etc/sudoers.d/75-ansible-secure_path
+      backup: no
+      create: yes
+      block: |
+        Defaults    secure_path = "{{ sudoers_default_secure_path.stdout }}:/usr/local/bin"
+      validate: visudo -cf %s
+  
+  when: ansible_facts['os_family'] | lower == 'redhat'

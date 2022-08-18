@@ -1,0 +1,28 @@
+# [ system_init - tasks/sys_sshd.yml ]
+
+# Set configuration files
+- name: Set configuration files
+  copy:
+    dest: "/etc/ssh/sshd_config.d/{{ lookup('dict', item).key }}.conf"
+    content: "{{ lookup('dict', item).value }}"
+    validate: /usr/sbin/sshd -T -f %s
+  register: sys_sshd_managed_files
+  notify: Restart sshd service
+  with_items: "{{ sys_sshd_additional_configs }}"
+
+# Lookup unmanaged files
+- name: Lookup unmanaged files
+  shell: "find /etc/ssh/sshd_config.d -name '*.conf'"
+  changed_when: no
+  register: sys_sshd_managed_directory
+
+# Remove unmanaged files
+- name: Remove unmanaged files
+  file:
+    path: "{{ item }}"
+    state: absent
+  notify: Restart sshd service
+  with_items: "{{ sys_sshd_managed_directory.stdout_lines }}"
+  when: item not in (sys_sshd_managed_files.results | map(attribute='dest'))
+
+- meta: flush_handlers

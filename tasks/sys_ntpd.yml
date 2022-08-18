@@ -1,0 +1,18 @@
+# [ system_init - tasks/sys_ntpd.yml ]
+
+# Install NTP daemon packages
+- name: Install NTP daemon packages
+  package:
+    name: ntp
+    state: present
+
+
+# Apply NTP daemon config template
+- name: Apply NTP daemon config template
+  template:
+    src: ntpd/ntp.conf.j2
+    dest: "/etc/ntp.conf"
+    mode: 0644
+  notify: Restart ntpd service
+
+- meta: flush_handlers

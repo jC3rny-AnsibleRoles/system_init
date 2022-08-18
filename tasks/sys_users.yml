@@ -1,0 +1,68 @@
+# [ system_init - tasks/sys_users.yml ]
+
+- block:
+  # Configure user
+  - name: Configure user
+    user:
+      name: "{{ item.name }}"
+      comment: "{{ item.gecos }}"
+      create_home: yes
+      groups: "{{ item.groups }}"
+      append: yes
+      shell: "{{ item.shell | default('/bin/bash') }}"
+      password_lock: "{{ item.lock_passwd }}"
+    with_items: "{{ sys_users }}"
+
+  # Update user authorized_keys
+  - name: Update user authorized_keys
+    file:
+      path: "/home/{{ item.name }}/.ssh"
+      state: directory
+      owner: "{{ item.name }}"
+      group: "{{ item.name }}"
+      mode: 0700
+    with_items: "{{ sys_users }}"
+
+  - template:
+      src: authorized_keys.j2
+      dest: "/home/{{ item.name }}/.ssh/authorized_keys"
+      force: yes
+      owner: "{{ item.name }}"
+      group: "{{ item.name }}"
+      mode: 0600
+    with_items: "{{ sys_users }}"
+  
+  when: sys_users != []
+  tags: [ set-sys_users ]
+
+
+# Lock users
+- block:
+  # Disable user shell login
+  - name: Disable user shell login
+    user:
+      name: "{{ item }}"
+      shell: "/usr/sbin/nologin"
+      password_lock: yes
+    changed_when: no
+    failed_when: no
+    with_items: "{{ sys_locked_users }}"
+
+  # Remove user password
+  - name: Remove user password
+    shell: "passwd -d {{ item }}"
+    changed_when: no
+    failed_when: no
+    with_items: "{{ sys_locked_users }}"
+  
+  # Disable user remote login
+  - name: Disable user remote login
+    shell: "mv $(eval echo ~{{ item }})/.ssh/authorized_keys $(eval echo ~{{ item }})/.ssh/authorized_keys.lock_$(date +%Y%m%d-%H%M%S)"
+    changed_when: no
+    failed_when: no
+    with_items: "{{ sys_locked_users }}"
+  
+  when:
+    - sys_locked_users != []
+    - '"root" not in sys_locked_users'
+  tags: [ lock-sys_users ]

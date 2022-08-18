@@ -1,0 +1,42 @@
+---
+# [ system_init - handlers ]
+
+- name: daemon-reload (system_init)
+  systemd:
+    daemon_reload: yes
+
+
+- name: Restart sshd service
+  systemd:
+    name: sshd
+    enabled: yes
+    masked: no
+    state: restarted
+
+
+- name: Restart cockpit socket
+  systemd:
+    unit: cockpit.socket
+    enabled: yes
+    masked: no
+    state: restarted
+
+
+- name: Check cockpit certificate
+  shell: remotectl certificate
+
+
+- name: Restart ntpd service
+  systemd:
+    name: "{{ (ansible_facts['os_family'] | lower == 'redhat') | ternary('ntpd', 'ntp') }}"
+    enabled: yes
+    masked: no
+    state: restarted
+
+
+- name: Update CA trust
+  shell: update-ca-trust
+
+
+- name: Update CA certificates
+  shell: update-ca-certificates

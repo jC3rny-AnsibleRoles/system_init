@@ -1,0 +1,171 @@
+---
+# [ system_init - tasks ]
+
+# TimeZone
+- name: "Set timezone to {{ sys_timeZone }}"
+  timezone:
+    name: "{{ sys_timeZone }}"
+  tags: [ set-sys_timezone ]
+
+
+# SELINUX
+- name: Check SELinux state
+  selinux:
+    policy: "{{ sys_selinux_state_policy }}"
+    state: "{{ sys_selinux_state_type }}"
+  when: ansible_facts['os_family'] | lower == 'redhat'
+  tags: [ set-sys_selinux ]
+
+
+# Manage SSH daemon configuration
+- name: Manage SSH daemon configuration
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_sshd.yml"
+    apply:
+      tags: [ always ]
+  tags: [ system_init, set-sys_sshd_config ]
+
+
+# Manage users
+- name: Manage users
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_users.yml"
+    apply:
+      tags: [ system_init ]
+  tags: [ system_init, set-sys_users, lock-sys_users ]
+
+
+# Set up Sudoers
+- name: Set up Sudoers
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_sudoers.yml"
+    apply:
+      tags: [ system_init, set-sys_sudoers ]
+  tags: [ system_init, set-sys_sudoers, set-sys_users, set-sys_proxy ]
+
+
+# Set up /etc/hosts
+- name: Set up /etc/hosts
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_hosts.yml"
+    apply:
+      tags: [ always ]
+  tags: [ system_init, set-sys_hosts_file ]
+
+
+# Set up proxy environment
+- name: Set up proxy environment
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_proxy.yml"
+    apply:
+      tags: [ always ]
+  when: sys_proxy_http_settings != {}
+  tags: [ system_init, set-sys_proxy ]
+
+
+# Manage packages
+- name: Manage packages
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_packages.yml"
+  tags: [ install-sys_packages, install-sys_extra_packages, upgrade-sys_packages, set-sys_snapd_service ]
+
+
+# Install Cockpit
+- name: Install Cockpit
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_cockpit.yml"
+    apply:
+      tags: [ always ]
+  when:
+    - sys_cockpit_install | bool
+    - ansible_facts['os_family'] | lower == 'redhat'
+  tags: [ install-sys_cockpit ]
+
+
+# Manage NTP daemon
+- name: Manage NTP daemon
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_ntpd.yml"
+    apply:
+      tags: [ always ]
+  when: sys_ntpd_enabled | bool
+  tags: [ install-sys_ntpd, set-sys_ntpd ]
+
+
+# Import CA
+- name: Import CA
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_ca_certificates.yml"
+    apply:
+      tags: [ always ]
+  when: sys_ca_certificates != []
+  tags: [ set-sys_ca_certificates ]
+
+
+# Extend the logical volume
+- name: Extend the logical volume
+  lvol:
+    vg: "{{ item.vg }}"
+    lv: "{{ item.lv }}"
+    size: "{{ item.size }}"
+    resizefs: true
+  with_items: "{{ sys_lvm_lvol_extend }}"
+  when: sys_lvm_lvol_extend != []
+  tags: [ extend-sys_lvm_lvol ]
+
+
+# List block devices
+- block:
+  - name: List block devices
+    shell: lsblk
+    register: sys_lsblk
+  
+  - debug: msg="{{ sys_lsblk.stdout_lines }}"
+
+  tags: [ never, list-sys_block_devices ]
+
+
+# Notify handlers
+- name: Notify handler - daemon-reload (system_init)
+  debug: msg="Notify handler"
+  notify: daemon-reload (system_init)
+  changed_when: true
+  tags: [ never, notify-handler_sys_daemon_reload, notify-handlers_role_system_init, notify-handlers_all  ]
+
+- name: Notify handler - Restart sshd service
+  debug: msg="Notify handler"
+  notify: Restart sshd service
+  changed_when: true
+  tags: [ never, notify-handler_restart_sshd_service, notify-handlers_role_system_init, notify-handlers_all  ]
+
+- name: Notify handler - Restart cockpit socket
+  debug: msg="Notify handler"
+  notify: Restart cockpit socket
+  changed_when: true
+  tags: [ never, notify-handler_restart_cockpit_socket, notify-handlers_role_system_init, notify-handlers_all ]
+
+- name: Notify handler - Check cockpit certificate
+  debug: msg="Notify handler"
+  notify: Check cockpit certificate
+  changed_when: true
+  tags: [ never, notify-handler_check_cockpit_certificate, notify-handlers_role_system_init, notify-handlers_all ]
+
+- name: Notify handler - Restart ntpd service
+  debug: msg="Notify handler"
+  notify: Restart ntpd service
+  changed_when: true
+  tags: [ never, notify-handler_restart_ntpd_service, notify-handlers_role_system_init, notify-handlers_all ]
+
+- name: Notify handler - Update CA trust
+  debug: msg="Notify handler"
+  notify: Update CA trust
+  changed_when: true
+  tags: [ never, notify-handler_udpate_ca_trust, notify-handlers_role_system_init, notify-handlers_all ]
+
+- name: Notify handler - Update CA certificates
+  debug: msg="Notify handler"
+  notify: Update CA certificates
+  changed_when: true
+  tags: [ never, notify-handler_udpate_ca_certificates, notify-handlers_role_system_init, notify-handlers_all ]
+
+- meta: flush_handlers

@@ -1,0 +1,45 @@
+# /etc/ntp.conf, configuration for ntpd; see ntp.conf(5) for help
+
+driftfile {{ sys_ntpd_conf_driftfile }}
+
+# Leap seconds definition provided by tzdata
+leapfile {{ sys_ntpd_conf_leapfile }}
+
+# Enable this if you want statistics to be logged.
+{% if sys_ntpd_conf_statsdir != "" %}
+statsdir {{ sys_ntpd_conf_statsdir }}
+{% else %}
+#statsdir /var/log/ntpstats/
+{% endif %}
+
+statistics loopstats peerstats clockstats
+filegen loopstats file loopstats type day enable
+filegen peerstats file peerstats type day enable
+filegen clockstats file clockstats type day enable
+
+
+# Specify one or more NTP servers.
+{% for server in sys_ntpd_conf_servers %}
+{{ server }}
+{% endfor %}
+
+
+# Access control configuration
+
+# By default, exchange time with everybody, but don't allow configuration.
+restrict -4 default kod notrap nomodify nopeer noquery limited
+restrict -6 default kod notrap nomodify nopeer noquery limited
+
+# Local users may interrogate the ntp server more closely.
+restrict 127.0.0.1
+restrict ::1
+
+# Needed for adding pool entries
+restrict source notrap nomodify noquery
+
+{% if sys_ntpd_conf_restrictions != [] %}
+# Additional restrictions
+{% for restriction in sys_ntpd_conf_restrictions %}
+{{ restriction }}
+{% endfor %}
+{% endif %}

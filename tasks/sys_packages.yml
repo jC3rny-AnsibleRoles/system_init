@@ -1,0 +1,76 @@
+# [ system_init - tasks/sys_packages.yml ]
+# PREREQ: repository have to be configured manually...
+
+# RHEL
+- block:
+  # Install RHEL base packages
+  - name: Install RHEL base packages
+    yum:
+      name: "{{ sys_packages_common + sys_packages_additional + sys_packages_rhel }}"
+      state: present
+      update_cache: yes
+      skip_broken: yes
+    notify: daemon-reload (system_init)
+    when: (sys_packages_common + sys_packages_additional + sys_packages_rhel) != []
+    tags: [ install-sys_packages ]
+  
+  # Install RHEL extra packages
+  - name: Install RHEL extra packages
+    yum:
+      name: "{{ sys_packages_rhel_epel }}"
+      state: present
+      enablerepo: "{{ sys_packages_rhel_epel_repo_name }}"
+      update_cache: yes
+      skip_broken: yes
+    notify: daemon-reload (system_init)
+    when: sys_packages_rhel_epel != []
+    tags: [ install-sys_extra_packages ]
+  
+  # Upgrade all packages
+  - name: Upgrade all packages
+    yum:
+      name: "*"
+      state: latest
+      enablerepo: "{{ sys_packages_rhel_epel_repo_name }}"
+      update_cache: yes
+      skip_broken: yes
+    notify: daemon-reload (system_init)
+    tags: [ never, upgrade-sys_packages ]
+  
+  when: ansible_facts['os_family'] | lower == 'redhat'
+
+
+# Debian
+- block:
+  # Install Debian base packages
+  - name: Install Debian base packages
+    apt:
+      name: "{{ sys_packages_common + sys_packages_additional + sys_packages_debian }}"
+      state: present
+      update_cache: yes
+    notify: daemon-reload (system_init)
+    when: (sys_packages_common + sys_packages_additional + sys_packages_debian) != []
+    tags: [ install-sys_packages ]
+  
+  # Upgrade all packages
+  - name: Upgrade all packages
+    apt:
+      upgrade: "{{ apt_upgrade_method }}"
+      update_cache: yes
+    notify: daemon-reload (system_init)
+    tags: [ never, upgrade-sys_packages ]
+
+  # Set up Snap daemon
+  - name: Set up Snap daemon
+    systemd:
+      name: "snapd.{{ item }}"
+      enabled: "{{ sys_snapd_enabled }}"
+      masked: "{{ (sys_snapd_enabled | bool) | ternary('no','yes') }}"
+      state: "{{ (sys_snapd_enabled | bool) | ternary('started','stopped') }}"
+    with_items: [ "service", "socket", "seeded.service", "apparmor.service" ]
+    tags: [ set-sys_snapd_service ]
+
+  when: ansible_facts['os_family'] | lower == 'debian'
+
+
+- meta: flush_handlers
