@@ -34,6 +34,14 @@
     state: restarted
 
 
+- name: Restart node_exporter service
+  systemd:
+    unit: node_exporter.service
+    enabled: yes
+    masked: no
+    state: restarted
+
+
 - name: Update CA trust
   shell: update-ca-trust
 

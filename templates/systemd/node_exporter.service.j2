@@ -1,0 +1,17 @@
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+Type=simple
+User={{ sys_node_exporter_user.name }}
+Group={{ sys_node_exporter_group.name }}
+ExecStart={{ sys_node_exporter_directory }}/node_exporter \
+{% for key, value in sys_node_exporter_flags.items() %}
+        '--{{ key }}' {{ (value != "" and value is not none) | ternary("'" + (value | string) + "' \\", "\\", "\\") }}
+{% endfor %}
+

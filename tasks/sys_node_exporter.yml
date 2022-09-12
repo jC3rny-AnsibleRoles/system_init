@@ -1,0 +1,66 @@
+# [ system_init - tasks/sys_node_exporter.yml ]
+
+# Check Node Exporter user and group
+- block:
+  - name: Check Node Exporter user and group
+    group:
+      name: "{{ sys_node_exporter_group.name }}"
+      gid: "{{ sys_node_exporter_group.id }}"
+      state: present
+      system: yes
+
+  - user:
+      name: "{{ sys_node_exporter_user.name }}"
+      uid: "{{ sys_node_exporter_user.id }}"
+      comment: "Prometheus Node Exporter user"
+      create_home: no
+      group: "{{ sys_node_exporter_group.name }}"
+      append: no
+      state: present
+      shell: /usr/bin/false
+      system: yes
+      password_lock: yes
+  
+
+# Get Node Exporter latest version
+- block:
+  - name: Get Node Exporter latest version
+    shell: curl -sSL https://github.com/prometheus/node_exporter/releases/latest | grep -o 'href="/prometheus/node_exporter/releases/tag/.*" ' | awk -F '/' '{ print substr($NF, 1, length($NF)-2) }'
+    register: sys_node_exporter_latest_version
+    changed_when: no
+
+  - set_fact:
+      sys_node_exporter_version: "{{ sys_node_exporter_latest_version.stdout }}"
+  
+  when: sys_node_exporter_version == ""
+
+
+# Check Node Exporter binary
+- name: Check Node Exporter binary
+  stat: path="{{ sys_node_exporter_directory }}/node_exporter"
+  register: sys_node_exporter_binary
+
+
+# Download Node Exporter
+- name: Download Node Exporter
+  unarchive:
+    src: "https://github.com/prometheus/node_exporter/releases/download/{{ sys_node_exporter_version }}/node_exporter-{{ sys_node_exporter_version | regex_replace('^v', '') }}.linux-{{ sys_node_exporter_arch }}.tar.gz"
+    dest: "{{ sys_node_exporter_directory }}"
+    include: "node_exporter-{{ sys_node_exporter_version | regex_replace('^v', '') }}.linux-{{ sys_node_exporter_arch }}/node_exporter"
+    extra_opts: "--strip-components=1"
+    remote_src: yes
+    owner: "{{ sys_node_exporter_user.name }}"
+    group: "{{ sys_node_exporter_group.name }}"
+    mode: 0755
+  when: not sys_node_exporter_binary.stat.exists or 'upgrade-sys_node_exporter' in ansible_run_tags
+
+
+# Apply Node Exporter service template
+- name: Apply Node Exporter service template
+  template:
+    src: systemd/node_exporter.service.j2
+    dest: "/etc/systemd/system/node_exporter.service"
+    mode: 0644
+  notify: [ "daemon-reload (system_init)", "Restart node_exporter service" ]
+
+- meta: flush_handlers

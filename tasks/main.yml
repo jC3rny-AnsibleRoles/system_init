@@ -92,6 +92,16 @@
   tags: [ install-sys_ntpd, set-sys_ntpd ]
 
 
+# Install Prometheus Node Exporter
+- name: Install Prometheus Node Exporter
+  include_tasks:
+    file: "roles/{{ role_name }}/tasks/sys_node_exporter.yml"
+    apply:
+      tags: [ always ]
+  when: sys_node_exporter_enabled | bool
+  tags: [ install-sys_node_exporter, upgrade-sys_node_exporter ]
+
+
 # Import CA
 - name: Import CA
   include_tasks:

@@ -117,6 +117,16 @@ sys_ntpd_conf_servers:
 sys_ntpd_conf_restrictions: []
 
 
+# Prometheus Node Exporter
+sys_node_exporter_enabled: no
+sys_node_exporter_version: ""
+sys_node_exporter_arch: "amd64"
+sys_node_exporter_directory: "/usr/local/bin"
+sys_node_exporter_user: { id: 9001, name: node_exporter }
+sys_node_exporter_group: { id: 9001, name: node_exporter }
+sys_node_exporter_flags: {}
+
+
 # CA
 sys_ca_certificates: []
   # - filename: DigiCert_Global_Root_CA.crt
