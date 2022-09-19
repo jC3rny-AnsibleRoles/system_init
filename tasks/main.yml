@@ -129,6 +129,7 @@
   - name: List block devices
     shell: lsblk
     register: sys_lsblk
+    changed_when: no
   
   - debug: msg="{{ sys_lsblk.stdout_lines }}"
 
